@@ -1,7 +1,7 @@
 {
   "name": "ModHeader fork",
   "version": "2.3.2",
-  "manifest_version": 2,
+  "manifest_version": 3,
   "description": "Modify request and response headers",
   "background":  {
     "scripts": [ "background.js" ]
