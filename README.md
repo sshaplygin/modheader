@@ -17,7 +17,17 @@ ModHeader is a browser extension that allow you to modify HTTP request and respo
 
 ## Screenshots
 
-<img src="https://mod-header.appspot.com/images/ss1.png">
+### Main page
+
+<img src="./screenshots/main_page.png">
+
+### Profiles
+
+<img src="./screenshots/profiles.png">
+
+### Setting
+
+<img src="./screenshots/settings.png">
 
 ## Forking and contribution
 
