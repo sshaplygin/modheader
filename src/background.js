@@ -4,6 +4,7 @@ const MAX_PROFILES_IN_CLOUD = 50;
 const CHROME_VERSION = getChromeVersion();
 const EXTRA_REQUEST_HEADERS = new Set(['accept-language', 'accept-encoding', 'referer', 'cookie']);
 const EXTRA_RESPONSE_HEADERS = new Set(['set-cookie']);
+
 let currentProfile;
 let tabUrls = {};
 
@@ -383,15 +384,19 @@ function initializeStorage() {
     }
   }, 100);
 }
+
 browser.contextMenus.create({
   id: 'pause',
   title: 'Pause',
   contexts: ['browser_action'],
 });
+
 browser.contextMenus.create({
   id: 'lock',
   title: 'Lock',
   contexts: ['browser_action'],
 });
+
 initializeStorage();
+
 resetBadgeAndContextMenu();

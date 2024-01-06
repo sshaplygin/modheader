@@ -1,6 +1,7 @@
 const SPECIAL_CHARS = '^$&+?.()|{}[]/'.split('');
 const browser = chrome;
 const modHeader = angular.module('modheader-popup', ['ngMaterial']);
+
 modHeader.config(['$compileProvider', function ($compileProvider) {
   $compileProvider.debugInfoEnabled(false);
 }]);
@@ -406,8 +407,7 @@ modHeader.factory('profileService', function(
   return profileService;
 });
 
-modHeader.factory('autocompleteService', function(
-    dataSource) {
+modHeader.factory('autocompleteService', function(dataSource) {
   var autocompleteService = {};
 
   autocompleteService.requestHeaderNames = [
@@ -542,6 +542,7 @@ modHeader.controller('SortingController', function($filter, dataSource) {
 modHeader.controller('AppController', function(
     $scope, $mdSidenav, $mdUtil, $window, $mdToast,
     dataSource, profileService, autocompleteService) {
+
   $scope.toggleSidenav = $mdUtil.debounce(function() {
     $mdSidenav('left').toggle();
   }, 300);
@@ -570,20 +571,13 @@ modHeader.controller('AppController', function(
     {text: 'Tip: Append header value to existing one in profile setting'},
     {text: 'Tip: Pause button will temporarily pause all modifications'},
     {text: 'Tip: Go to cloud backup to retrieve your auto-synced profile'},
-    {
-      text: 'If you like ModHeader, please consider donating',
-      buttonText: 'Donate',
-      url: 'https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=3XFKZ8PCRB8P6&currency_code=USD&amount=5&source=url'
-    },
-    {
-      text: 'Enjoying ModHeader, leave us a review',
-      buttonText: 'Review',
-      url: navigator.userAgent.indexOf('Firefox') >= 0
-          ? 'https://addons.mozilla.org/firefox/addon/modheader-firefox/'
-          : 'https://chrome.google.com/webstore/detail/modheader/idgpnmonknjnojddfkpgkljpfnnfcklj'
-    },
   ];
+
   const tip = tips[Math.floor(Math.random() * tips.length)];
+  if (Math.random() * 100 >= 10) {
+    return;
+  }
+
   $mdToast.show({
     position: 'bottom',
     controller: 'ToastCtrl',
