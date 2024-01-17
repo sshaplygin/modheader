@@ -44,9 +44,9 @@ modHeader.factory('dataSource', function($mdToast) {
 
   dataSource.addFilter = function(filters) {
     let urlRegex = '';
-    if (localStorage.currentTabUrl) {
+    if (browser.storage.currentTabUrl) {
       const parser = document.createElement('a');
-      parser.href = localStorage.currentTabUrl;
+      parser.href = browser.storage.currentTabUrl;
       urlRegex = parser.origin + '/.*';
     }
     filters.push({
@@ -82,7 +82,7 @@ modHeader.factory('dataSource', function($mdToast) {
 
   dataSource.pause = function() {
     dataSource.isPaused = true;
-    localStorage.isPaused = true;
+    browser.storage.isPaused = true;
     $mdToast.show(
       $mdToast.simple()
         .content('ModHeader paused')
@@ -93,7 +93,7 @@ modHeader.factory('dataSource', function($mdToast) {
 
   dataSource.play = function() {
     dataSource.isPaused = false;
-    localStorage.removeItem('isPaused');
+    browser.storage.removeItem('isPaused');
     $mdToast.show(
       $mdToast.simple()
         .content('ModHeader unpaused')
@@ -103,8 +103,8 @@ modHeader.factory('dataSource', function($mdToast) {
   };
 
   dataSource.lockToTab = function() {
-    dataSource.lockedTabId = localStorage.activeTabId;
-    localStorage.lockedTabId = dataSource.lockedTabId;
+    dataSource.lockedTabId = browser.storage.activeTabId;
+    browser.storage.lockedTabId = dataSource.lockedTabId;
     $mdToast.show(
       $mdToast.simple()
         .content('Restricted ModHeader to the current tab')
@@ -115,7 +115,7 @@ modHeader.factory('dataSource', function($mdToast) {
 
   dataSource.unlockAllTab = function() {
     dataSource.lockedTabId = null;
-    localStorage.removeItem('lockedTabId');
+    browser.storage.removeItem('lockedTabId');
     $mdToast.show(
       $mdToast.simple()
         .content('Applying ModHeader to all tabs')
@@ -153,8 +153,8 @@ modHeader.factory('dataSource', function($mdToast) {
   dataSource.predicate = '';
   dataSource.reverse = false;
 
-  if (localStorage.profiles) {
-    dataSource.profiles = angular.fromJson(localStorage.profiles);
+  if (browser.storage.profiles) {
+    dataSource.profiles = angular.fromJson(browser.storage.profiles);
     for (let profile of dataSource.profiles) {
       fixProfile(profile);
     }
@@ -183,23 +183,23 @@ modHeader.factory('dataSource', function($mdToast) {
       profile.appendMode = '';
     }
   });
-  if (localStorage.selectedProfile) {
-    dataSource.selectedProfile = dataSource.profiles[Number(localStorage.selectedProfile)];
+  if (browser.storage.selectedProfile) {
+    dataSource.selectedProfile = dataSource.profiles[Number(browser.storage.selectedProfile)];
   }
   if (!dataSource.selectedProfile) {
     dataSource.selectedProfile = dataSource.profiles[0];
   }
-  if (localStorage.isPaused) {
-    dataSource.isPaused = localStorage.isPaused;
+  if (browser.storage.isPaused) {
+    dataSource.isPaused = browser.storage.isPaused;
   }
-  if (localStorage.lockedTabId) {
-    dataSource.lockedTabId = localStorage.lockedTabId;
+  if (browser.storage.lockedTabId) {
+    dataSource.lockedTabId = browser.storage.lockedTabId;
   }
   dataSource.save = function() {
     var serializedProfiles = angular.toJson(dataSource.profiles);
     var selectedProfileIndex = dataSource.profiles.indexOf(dataSource.selectedProfile);
-    localStorage.profiles = serializedProfiles;
-    localStorage.selectedProfile = selectedProfileIndex;
+    browser.storage.profiles = serializedProfiles;
+    browser.storage.selectedProfile = selectedProfileIndex;
   };
   return dataSource;
 });
