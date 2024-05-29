@@ -38,7 +38,7 @@ function passFilters_(url, type, filters) {
     }
   }
   return (!hasUrlFilters || allowUrls)
-      && (!hasResourceTypeFilters || allowTypes);
+    && (!hasResourceTypeFilters || allowTypes);
 };
 
 function loadSelectedProfile_() {
@@ -48,17 +48,17 @@ function loadSelectedProfile_() {
   let filters = [];
   if (browser.storage.profiles) {
     const profiles = JSON.parse(browser.storage.profiles);
-    if (!browser.storage.selectedProfile) {
-      browser.storage.selectedProfile = 0;
+    if (!browser.storage.selectedProfileIdx) {
+      browser.storage.selectedProfileIdx = 0;
     }
-    const selectedProfile = profiles[browser.storage.selectedProfile];
+    const selectedProfile = profiles[browser.storage.selectedProfileIdx];
 
     function filterEnabledHeaders_(headers) {
       let output = [];
       for (let header of headers) {
         // Overrides the header if it is enabled and its name is not empty.
         if (header.enabled && header.name) {
-          output.push({name: header.name, value: header.value});
+          output.push({ name: header.name, value: header.value });
         }
       }
       return output;
@@ -87,10 +87,10 @@ function loadSelectedProfile_() {
     respHeaders = filterEnabledHeaders_(selectedProfile.respHeaders);
   }
   return {
-      appendMode: appendMode,
-      headers: headers,
-      respHeaders: respHeaders,
-      filters: filters
+    appendMode: appendMode,
+    headers: headers,
+    respHeaders: respHeaders,
+    filters: filters
   };
 };
 
@@ -119,7 +119,7 @@ function modifyHeader(source, dest) {
         dest[index].value += header.value;
       }
     } else {
-      dest.push({name: header.name, value: header.value});
+      dest.push({ name: header.name, value: header.value });
       indexMap[header.name.toLowerCase()] = dest.length - 1;
     }
   }
@@ -136,13 +136,13 @@ function modifyRequestHeaderHandler_(details) {
     browser.tabs.get(details.tabId, onTabUpdated);
   }
   if (!browser.storage.lockedTabId
-      || browser.storage.lockedTabId == details.tabId) {
+    || browser.storage.lockedTabId == details.tabId) {
     if (currentProfile
-        && passFilters_(details.url, details.type, currentProfile.filters)) {
+      && passFilters_(details.url, details.type, currentProfile.filters)) {
       modifyHeader(currentProfile.headers, details.requestHeaders);
     }
   }
-  return {requestHeaders: details.requestHeaders};
+  return { requestHeaders: details.requestHeaders };
 };
 
 function modifyResponseHeaderHandler_(details) {
@@ -150,14 +150,14 @@ function modifyResponseHeaderHandler_(details) {
     return {};
   }
   if (!browser.storage.lockedTabId
-      || browser.storage.lockedTabId == details.tabId) {
+    || browser.storage.lockedTabId == details.tabId) {
     if (currentProfile
-        && passFilters_(details.url, details.type, currentProfile.filters)) {
+      && passFilters_(details.url, details.type, currentProfile.filters)) {
       const serializedOriginalResponseHeaders = JSON.stringify(details.responseHeaders);
       const responseHeaders = JSON.parse(serializedOriginalResponseHeaders);
       modifyHeader(currentProfile.respHeaders, responseHeaders);
       if (JSON.stringify(responseHeaders) != serializedOriginalResponseHeaders) {
-        return {responseHeaders: responseHeaders};
+        return { responseHeaders: responseHeaders };
       }
     }
   }
@@ -166,14 +166,14 @@ function modifyResponseHeaderHandler_(details) {
 function getChromeVersion() {
   let pieces = navigator.userAgent.match(/Chrom(?:e|ium)\/([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)/);
   if (pieces == null || pieces.length != 5) {
-      return {};
+    return {};
   }
   pieces = pieces.map(piece => parseInt(piece, 10));
   return {
-      major: pieces[1],
-      minor: pieces[2],
-      build: pieces[3],
-      patch: pieces[4]
+    major: pieces[1],
+    minor: pieces[2],
+    build: pieces[3],
+    patch: pieces[4]
   };
 }
 
@@ -195,7 +195,7 @@ function setupHeaderModListener() {
     }
     browser.webRequest.onBeforeSendHeaders.addListener(
       modifyRequestHeaderHandler_,
-      {urls: ["<all_urls>"]},
+      { urls: ["<all_urls>"] },
       requiresExtraRequestHeaders ? ['requestHeaders', 'blocking', 'extraHeaders'] : ['requestHeaders', 'blocking']
     );
   }
@@ -211,7 +211,7 @@ function setupHeaderModListener() {
     }
     browser.webRequest.onHeadersReceived.addListener(
       modifyResponseHeaderHandler_,
-      {urls: ["<all_urls>"]},
+      { urls: ["<all_urls>"] },
       requiresExtraResponseHeaders ? ['responseHeaders', 'blocking', 'extraHeaders'] : ['responseHeaders', 'blocking']
     );
   }
@@ -257,7 +257,7 @@ browser.windows.onFocusChanged.addListener((windowId) => {
   if (windowId == browser.windows.WINDOW_ID_NONE) {
     return;
   }
-  browser.windows.get(windowId, {populate: true}, (win) => {
+  browser.windows.get(windowId, { populate: true }, (win) => {
     for (let tab of win.tabs) {
       onTabUpdated(tab);
     }
@@ -266,19 +266,21 @@ browser.windows.onFocusChanged.addListener((windowId) => {
 
 function saveStorageToCloud() {
   browser.storage.sync.get(null, (items) => {
-      const keys = items ? Object.keys(items) : [];
-      keys.sort();
-      if (keys.length == 0 ||
-          items[keys[keys.length - 1]] != browser.storage.profiles) {
-        const data = {};
-        data[Date.now()] = browser.storage.profiles;
-        browser.storage.sync.set(data);
-        browser.storage.savedToCloud = true;
-      }
-      if (keys.length >= MAX_PROFILES_IN_CLOUD) {
-        browser.storage.sync.remove(keys.slice(0, keys.length - MAX_PROFILES_IN_CLOUD));
-      }
-    });
+    const keys = items ? Object.keys(items) : [];
+    keys.sort();
+
+    if (keys.length == 0 ||
+      items[keys[keys.length - 1]] != browser.storage.profiles) {
+      const data = {};
+      data[Date.now()] = browser.storage.profiles;
+      browser.storage.sync.set(data);
+      browser.storage.savedToCloud = true;
+    }
+
+    if (keys.length >= MAX_PROFILES_IN_CLOUD) {
+      browser.storage.sync.remove(keys.slice(0, keys.length - MAX_PROFILES_IN_CLOUD));
+    }
+  });
 }
 
 function createContextMenu() {
@@ -332,26 +334,26 @@ function createContextMenu() {
 
 function resetBadgeAndContextMenu() {
   if (browser.storage.isPaused) {
-    browser.action.setIcon({path: 'icon_bw.png'});
-    browser.action.setBadgeText({text: '\u275A\u275A'});
-    browser.action.setBadgeBackgroundColor({color: '#666'});
+    browser.action.setIcon({ path: 'icon_bw.png' });
+    browser.action.setBadgeText({ text: '\u275A\u275A' });
+    browser.action.setBadgeBackgroundColor({ color: '#666' });
     createContextMenu();
     return;
-  } 
-    
+  }
+
   const numHeaders = (currentProfile.headers.length + currentProfile.respHeaders.length);
   if (numHeaders == 0) {
-    browser.action.setBadgeText({text: ''});
-    browser.action.setIcon({path: 'icon_bw.png'});
+    browser.action.setBadgeText({ text: '' });
+    browser.action.setIcon({ path: 'icon_bw.png' });
   } else if (browser.storage.lockedTabId
-      && browser.storage.lockedTabId != browser.storage.activeTabId) {
-    browser.action.setIcon({path: 'icon_bw.png'});
-    browser.action.setBadgeText({text: '\uD83D\uDD12'});
-    browser.action.setBadgeBackgroundColor({color: '#ff8e8e'});
+    && browser.storage.lockedTabId != browser.storage.activeTabId) {
+    browser.action.setIcon({ path: 'icon_bw.png' });
+    browser.action.setBadgeText({ text: '\uD83D\uDD12' });
+    browser.action.setBadgeBackgroundColor({ color: '#ff8e8e' });
   } else {
-    browser.action.setIcon({path: 'icon.png'});
-    browser.action.setBadgeText({text: numHeaders.toString()});
-    browser.action.setBadgeBackgroundColor({color: '#db4343'});
+    browser.action.setIcon({ path: 'icon.png' });
+    browser.action.setBadgeText({ text: numHeaders.toString() });
+    browser.action.setBadgeBackgroundColor({ color: '#db4343' });
   }
 
   createContextMenu();
@@ -361,15 +363,6 @@ function initializeStorage() {
   currentProfile = loadSelectedProfile_();
   setupHeaderModListener();
 
-  // window.addEventListener('storage', function(e) {
-  //   currentProfile = loadSelectedProfile_();
-  //   setupHeaderModListener();
-  //   resetBadgeAndContextMenu();
-  //   if (e.key == 'profiles') {
-  //     saveStorageToCloud();
-  //   }
-  // });
-
   browser.storage.onChanged.addListener(function (changes, areaName) {
     currentProfile = loadSelectedProfile_();
     setupHeaderModListener();
@@ -378,7 +371,7 @@ function initializeStorage() {
     if (areaName === 'sync' && changes.profiles) {
       saveStorageToCloud();
     }
-});
+  });
 
   // Async initialization.
   setTimeout(() => {
@@ -412,5 +405,17 @@ browser.contextMenus.create({
 });
 
 initializeStorage();
+
+self.addEventListener('storage', function (e) {
+  currentProfile = loadSelectedProfile_();
+  setupHeaderModListener();
+  resetBadgeAndContextMenu();
+
+  console.log('storage', e);
+
+  if (e.key == 'profiles') {
+    saveStorageToCloud();
+  }
+});
 
 resetBadgeAndContextMenu();
