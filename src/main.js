@@ -3,37 +3,39 @@ const browser = chrome;
 const modHeader = angular.module('modheader-popup', ['ngMaterial']);
 
 modHeader.config(['$compileProvider', function ($compileProvider) {
-  $compileProvider.debugInfoEnabled(false);
+  $compileProvider.debugInfoEnabled(true);
 }]);
 
 function fixProfile(profile) {
-  if (profile.filters) {
-    for (let filter of profile.filters) {
-      if (filter.urlPattern) {
-        const urlPattern = filter.urlPattern;
-        const joiner = [];
-        for (let i = 0; i < urlPattern.length; ++i) {
-          let c = urlPattern.charAt(i);
-          if (SPECIAL_CHARS.indexOf(c) >= 0) {
-            c = '\\' + c;
-          } else if (c == '\\') {
-            c = '\\\\';
-          } else if (c == '*') {
-            c = '.*';
-          }
-          joiner.push(c);
+  if (!profile.filters) {
+    return;
+  }
+
+  for (let filter of profile.filters) {
+    if (filter.urlPattern) {
+      const urlPattern = filter.urlPattern;
+      const joiner = [];
+      for (let i = 0; i < urlPattern.length; ++i) {
+        let c = urlPattern.charAt(i);
+        if (SPECIAL_CHARS.indexOf(c) >= 0) {
+          c = '\\' + c;
+        } else if (c == '\\') {
+          c = '\\\\';
+        } else if (c == '*') {
+          c = '.*';
         }
-        delete filter.urlPattern;
-        filter.urlRegex = joiner.join('');
+        joiner.push(c);
       }
+      delete filter.urlPattern;
+      filter.urlRegex = joiner.join('');
     }
   }
 }
 
-modHeader.factory('dataSource', function($mdToast) {
+modHeader.factory('dataSource', function ($mdToast) {
   var dataSource = {};
 
-  var isExistingProfileTitle_ = function(title) {
+  var isExistingProfileTitle_ = function (title) {
     for (var i = 0; i < dataSource.profiles.length; ++i) {
       if (dataSource.profiles[i].title == title) {
         return true;
@@ -42,7 +44,7 @@ modHeader.factory('dataSource', function($mdToast) {
     return false;
   };
 
-  dataSource.addFilter = function(filters) {
+  dataSource.addFilter = function (filters) {
     let urlRegex = '';
     if (browser.storage.currentTabUrl) {
       const parser = document.createElement('a');
@@ -56,7 +58,7 @@ modHeader.factory('dataSource', function($mdToast) {
     });
   };
 
-  dataSource.addHeader = function(headers) {
+  dataSource.addHeader = function (headers) {
     headers.push({
       enabled: true,
       name: '',
@@ -65,22 +67,22 @@ modHeader.factory('dataSource', function($mdToast) {
     });
   };
 
-  dataSource.removeFilter = function(filters, filter) {
+  dataSource.removeFilter = function (filters, filter) {
     filters.splice(filters.indexOf(filter), 1);
   };
 
-  dataSource.removeHeader = function(headers, header) {
+  dataSource.removeHeader = function (headers, header) {
     headers.splice(headers.indexOf(header), 1);
   };
 
-  dataSource.removeHeaderEnsureNonEmpty = function(headers, header) {
+  dataSource.removeHeaderEnsureNonEmpty = function (headers, header) {
     dataSource.removeHeader(headers, header);
     if (!headers.length) {
       dataSource.addHeader(headers);
     }
   };
 
-  dataSource.pause = function() {
+  dataSource.pause = function () {
     dataSource.isPaused = true;
     browser.storage.isPaused = true;
     $mdToast.show(
@@ -91,7 +93,7 @@ modHeader.factory('dataSource', function($mdToast) {
     );
   };
 
-  dataSource.play = function() {
+  dataSource.play = function () {
     dataSource.isPaused = false;
     browser.storage.removeItem('isPaused');
     $mdToast.show(
@@ -102,7 +104,7 @@ modHeader.factory('dataSource', function($mdToast) {
     );
   };
 
-  dataSource.lockToTab = function() {
+  dataSource.lockToTab = function () {
     dataSource.lockedTabId = browser.storage.activeTabId;
     browser.storage.lockedTabId = dataSource.lockedTabId;
     $mdToast.show(
@@ -113,7 +115,7 @@ modHeader.factory('dataSource', function($mdToast) {
     );
   };
 
-  dataSource.unlockAllTab = function() {
+  dataSource.unlockAllTab = function () {
     dataSource.lockedTabId = null;
     browser.storage.removeItem('lockedTabId');
     $mdToast.show(
@@ -124,7 +126,7 @@ modHeader.factory('dataSource', function($mdToast) {
     );
   };
 
-  dataSource.hasDuplicateHeaderName = function(headers, name) {
+  dataSource.hasDuplicateHeaderName = function (headers, name) {
     for (var i = 0; i < headers.length; ++i) {
       var header = headers[i];
       if (header.enabled && header.name == name) {
@@ -134,22 +136,32 @@ modHeader.factory('dataSource', function($mdToast) {
     return false;
   };
 
-  dataSource.createProfile = function() {
-    const index = 1;
+  dataSource.createProfile = function () {
+    let index = 1;
+
     while (isExistingProfileTitle_('Profile ' + index)) {
-      ++index;
+      index++;
     }
+
     const profile = {
-        title: 'Profile ' + index,
-        hideComment: true,
-        headers: [],
-        respHeaders: [],
-        filters: [],
-        appendMode: ''
+      title: 'Profile ' + index,
+      hideComment: true,
+      headers: [],
+      respHeaders: [],
+      filters: [],
+      appendMode: ''
     };
+
     dataSource.addHeader(profile.headers);
+
     return profile;
   };
+
+  dataSource.save = function () {
+    browser.storage.profiles = angular.toJson(dataSource.profiles);
+    browser.storage.selectedProfileIdx = dataSource.profiles.indexOf(dataSource.selectedProfile);
+  };
+
   dataSource.predicate = '';
   dataSource.reverse = false;
 
@@ -161,10 +173,12 @@ modHeader.factory('dataSource', function($mdToast) {
   } else {
     dataSource.profiles = [];
   }
+
   if (dataSource.profiles.length == 0) {
     dataSource.profiles.push(dataSource.createProfile());
   }
-  angular.forEach(dataSource.profiles, function(profile, index) {
+
+  angular.forEach(dataSource.profiles, function (profile, index) {
     if (!profile.title) {
       profile.title = 'Profile ' + (index + 1);
     }
@@ -183,8 +197,9 @@ modHeader.factory('dataSource', function($mdToast) {
       profile.appendMode = '';
     }
   });
-  if (browser.storage.selectedProfile) {
-    dataSource.selectedProfile = dataSource.profiles[Number(browser.storage.selectedProfile)];
+
+  if (browser.storage.selectedProfileIdx) {
+    dataSource.selectedProfile = dataSource.profiles[Number(browser.storage.selectedProfileIdx)];
   }
   if (!dataSource.selectedProfile) {
     dataSource.selectedProfile = dataSource.profiles[0];
@@ -195,48 +210,44 @@ modHeader.factory('dataSource', function($mdToast) {
   if (browser.storage.lockedTabId) {
     dataSource.lockedTabId = browser.storage.lockedTabId;
   }
-  dataSource.save = function() {
-    var serializedProfiles = angular.toJson(dataSource.profiles);
-    var selectedProfileIndex = dataSource.profiles.indexOf(dataSource.selectedProfile);
-    browser.storage.profiles = serializedProfiles;
-    browser.storage.selectedProfile = selectedProfileIndex;
-  };
+
   return dataSource;
 });
 
-modHeader.factory('profileService', function(
-    $timeout, $mdSidenav, $mdUtil, $mdDialog, $mdToast, dataSource) {
+modHeader.factory('profileService', function ($timeout, $mdSidenav, $mdUtil, $mdDialog, $mdToast, dataSource) {
   var profileService = {};
-  
-  var closeOptionsPanel_ = function() {
+
+  var closeOptionsPanel_ = function () {
     $mdSidenav('left').close();
   };
 
-  var updateSelectedProfile_ = function() {
-   $timeout(function() {
+  var updateSelectedProfile_ = function () {
+    $timeout(function () {
       dataSource.selectedProfile = dataSource.profiles[dataSource.profiles.length - 1];
     }, 1);
   };
 
-  profileService.selectProfile = function(profile) {
+  profileService.selectProfile = function (profile) {
     dataSource.selectedProfile = profile;
     closeOptionsPanel_();
   };
 
-  profileService.addProfile = function() {
+  profileService.addProfile = function () {
     dataSource.profiles.push(dataSource.createProfile());
     updateSelectedProfile_();
     closeOptionsPanel_();
+
+    dataSource.save();
   };
 
-  profileService.cloneProfile = function(profile) {
+  profileService.cloneProfile = function (profile) {
     var newProfile = angular.copy(profile);
     newProfile.title = 'Copy of ' + newProfile.title;
     dataSource.profiles.push(newProfile);
     updateSelectedProfile_();
   };
 
-  profileService.deleteProfile = function(profile) {
+  profileService.deleteProfile = function (profile) {
     dataSource.profiles.splice(dataSource.profiles.indexOf(profile), 1);
     if (dataSource.profiles.length == 0) {
       profileService.addProfile();
@@ -245,7 +256,7 @@ modHeader.factory('profileService', function(
     }
   };
 
-  profileService.exportProfile = function(event, profile) {
+  profileService.exportProfile = function (event, profile) {
     var parentEl = angular.element(document.body);
     $mdDialog.show({
       parent: parentEl,
@@ -262,7 +273,7 @@ modHeader.factory('profileService', function(
       $scope.title = title;
       $scope.profile = profile;
 
-      $scope.copy = function() {
+      $scope.copy = function () {
         document.getElementById('exportedProfile').select();
         document.execCommand('copy');
         $mdToast.show(
@@ -273,13 +284,13 @@ modHeader.factory('profileService', function(
         );
       };
 
-      $scope.closeDialog = function() {
+      $scope.closeDialog = function () {
         $mdDialog.hide();
       };
     }
   };
 
-  profileService.importProfile = function(event, profile) {
+  profileService.importProfile = function (event, profile) {
     var parentEl = angular.element(document.body);
     $mdDialog.show({
       parent: parentEl,
@@ -290,7 +301,7 @@ modHeader.factory('profileService', function(
         profile: profile
       },
       controller: DialogController_
-    }).then(function(importProfile) {
+    }).then(function (importProfile) {
       try {
         angular.copy(angular.fromJson(importProfile), profile);
         fixProfile(profile);
@@ -312,13 +323,13 @@ modHeader.factory('profileService', function(
     function DialogController_($scope, $mdDialog, profile) {
       $scope.importProfile = '';
 
-      $scope.closeDialog = function() {
+      $scope.closeDialog = function () {
         $mdDialog.hide($scope.importProfile);
       };
     }
   };
 
-  profileService.openSettings = function(event, profile) {
+  profileService.openSettings = function (event, profile) {
     var parentEl = angular.element(document.body);
     $mdDialog.show({
       parent: parentEl,
@@ -333,12 +344,13 @@ modHeader.factory('profileService', function(
     function DialogController_($scope, $mdDialog, profile) {
       $scope.profile = profile;
 
-      $scope.closeDialog = function() {
+      $scope.closeDialog = function () {
         $mdDialog.hide();
       };
     }
   };
 
+  // todo: deadcode
   profileService.openCloudBackup = (event) => {
     const parentEl = angular.element(document.body);
     $mdDialog.show({
@@ -371,43 +383,45 @@ modHeader.factory('profileService', function(
         );
       }
     });
+
     function DialogController_($scope, $mdDialog) {
       browser.storage.sync.get(null, (items) => {
-          let savedData = [];
-          if (!items) {
-            items = [];
-          }
-          for (const key in items) {
-            try {
-              const serializedProfiles = items[key];
-              const profiles = angular.fromJson(serializedProfiles);
-              for (let profile of profiles) {
-                fixProfile(profile);
-              }
-              savedData.push({
-                'timeInMs': key,
-                'profiles': profiles,
-              });
-            } catch(e) {
-              // skip invalid profile.
+        let savedData = [];
+        if (!items) {
+          items = [];
+        }
+        for (const key in items) {
+          try {
+            const serializedProfiles = items[key];
+            const profiles = angular.fromJson(serializedProfiles);
+            for (let profile of profiles) {
+              fixProfile(profile);
             }
+            savedData.push({
+              'timeInMs': key,
+              'profiles': profiles,
+            });
+          } catch (e) {
+            // skip invalid profile.
           }
-          $scope.savedData = savedData;
-        });
+        }
+        $scope.savedData = savedData;
+      });
 
-      $scope.selectProfiles = function(profiles) {
+      $scope.selectProfiles = function (profiles) {
         $mdDialog.hide(profiles);
       };
 
-      $scope.closeDialog = function() {
+      $scope.closeDialog = function () {
         $mdDialog.hide();
       };
     }
   };
+
   return profileService;
 });
 
-modHeader.factory('autocompleteService', function(dataSource) {
+modHeader.factory('autocompleteService', function (dataSource) {
   var autocompleteService = {};
 
   autocompleteService.requestHeaderNames = [
@@ -506,17 +520,17 @@ modHeader.factory('autocompleteService', function(dataSource) {
   autocompleteService.responseHeaderValues = [];
 
   function createFilterFor_(query) {
-    var lowercaseQuery = angular.lowercase(query);
+    var lowercaseQuery = query.toLowerCase();
     return function filterFn(item) {
-      return (angular.lowercase(item).indexOf(lowercaseQuery) == 0);
+      return (item.toLowerCase().indexOf(lowercaseQuery) == 0);
     };
   }
 
-  autocompleteService.query = function(cache, sourceHeaderList, field, query) {
+  autocompleteService.query = function (cache, sourceHeaderList, field, query) {
     if (!query || query.length < 2) {
       return [];
     }
-    angular.forEach(sourceHeaderList, function(header) {
+    angular.forEach(sourceHeaderList, function (header) {
       if (header[field] != query && cache.indexOf(header[field]) < 0) {
         cache.push(header[field]);
       }
@@ -526,33 +540,42 @@ modHeader.factory('autocompleteService', function(dataSource) {
   return autocompleteService;
 });
 
-modHeader.controller('SortingController', function($filter, dataSource) {
-  this.order = function(profile, predicate) {
+modHeader.controller('SortingController', function ($filter, dataSource) {
+  this.order = function (profile, predicate) {
     dataSource.reverse = (dataSource.predicate === predicate)
-        ? !dataSource.reverse : false;
+      ? !dataSource.reverse : false;
     dataSource.predicate = predicate;
     var orderBy = $filter('orderBy');
     profile.headers = orderBy(
-        profile.headers, dataSource.predicate, dataSource.reverse);
+      profile.headers, dataSource.predicate, dataSource.reverse);
     profile.respHeaders = orderBy(
-        profile.respHeaders, dataSource.predicate, dataSource.reverse);
+      profile.respHeaders, dataSource.predicate, dataSource.reverse);
   };
 });
 
-modHeader.controller('AppController', function(
-    $scope, $mdSidenav, $mdUtil, $window, $mdToast,
-    dataSource, profileService, autocompleteService) {
+modHeader.controller('AppController', function (
+  $scope, $mdSidenav, $mdUtil, $window, $mdToast,
+  dataSource, profileService, autocompleteService
+) {
 
-  $scope.toggleSidenav = $mdUtil.debounce(function() {
+  console.log('create');
+
+  $scope.toggleSidenav = $mdUtil.debounce(function () {
     $mdSidenav('left').toggle();
   }, 300);
 
-  $window.onunload = function(e) {
+  // $window.onunload = function (e) {
+  //   dataSource.save();
+  // };
+
+  $window.$destroy = (e) => {
+    console.log('destroy', e);
+
     dataSource.save();
   };
 
-  $scope.openLink = function(link) {
-    browser.tabs.create({url: link});
+  $scope.openLink = function (link) {
+    browser.tabs.create({ url: link });
   };
 
   $scope.autocompleteService = autocompleteService;
@@ -560,17 +583,17 @@ modHeader.controller('AppController', function(
   $scope.profileService = profileService;
 
   const tips = [
-    {text: 'Tip: You can switch between multiple profile'},
-    {text: 'Tip: You can export your profile to share with others'},
-    {text: 'Tip: Tab lock will apply the modification only to locked tab'},
-    {text: 'Tip: Add filter will let you use regex to limit modification'},
-    {text: 'Tip: Use the checkbox to quickly toggle header modification'},
-    {text: 'Tip: Click on the column name to sort'},
-    {text: 'Tip: Add filter also allows you to filter by resource type'},
-    {text: 'Tip: Go to profile setting to toggle comment column'},
-    {text: 'Tip: Append header value to existing one in profile setting'},
-    {text: 'Tip: Pause button will temporarily pause all modifications'},
-    {text: 'Tip: Go to cloud backup to retrieve your auto-synced profile'},
+    { text: 'Tip: You can switch between multiple profile' },
+    { text: 'Tip: You can export your profile to share with others' },
+    { text: 'Tip: Tab lock will apply the modification only to locked tab' },
+    { text: 'Tip: Add filter will let you use regex to limit modification' },
+    { text: 'Tip: Use the checkbox to quickly toggle header modification' },
+    { text: 'Tip: Click on the column name to sort' },
+    { text: 'Tip: Add filter also allows you to filter by resource type' },
+    { text: 'Tip: Go to profile setting to toggle comment column' },
+    { text: 'Tip: Append header value to existing one in profile setting' },
+    { text: 'Tip: Pause button will temporarily pause all modifications' },
+    { text: 'Tip: Go to cloud backup to retrieve your auto-synced profile' },
   ];
 
   const tip = tips[Math.floor(Math.random() * tips.length)];
@@ -583,16 +606,15 @@ modHeader.controller('AppController', function(
     controller: 'ToastCtrl',
     controllerAs: 'ctrl',
     bindToController: true,
-    locals: {toastMessage: tip.text, buttonText: tip.buttonText, url: tip.url},
+    locals: { toastMessage: tip.text, buttonText: tip.buttonText, url: tip.url },
     templateUrl: 'footer.tmpl.html'
   });
 });
 
-
-modHeader.controller('ToastCtrl', function($mdToast, $mdDialog, $document, $scope) {
+modHeader.controller('ToastCtrl', function ($mdToast, $mdDialog, $document, $scope) {
   let ctrl = this;
 
-  ctrl.goToUrl = function(url) {
-    browser.tabs.create({url: url});
+  ctrl.goToUrl = function (url) {
+    browser.tabs.create({ url: url });
   };
 });
