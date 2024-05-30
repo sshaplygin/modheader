@@ -42,59 +42,73 @@ modHeader.factory('dataSource', function ($mdToast) {
     selectedProfileIdx: -1,
   };
 
-  browser.storage.local.get(['profiles'], (profiles) => {
-    console.log('profiles', profiles);
+  // browser.storage.local.set({ 'profiles': [] });
 
-    if (!profiles) {
+  browser.storage.local.get('profiles', (res) => {
+    let { profiles } = res;
+
+    if (profiles.length === 0) {
       dataSource.profiles.push(dataSource.createProfile());
       dataSource.selectedProfileIdx = 0;
 
       return;
     }
 
-    dataSource.profiles = angular.fromJson(profiles);
+    dataSource.profiles = profiles;
+
     for (let profile of dataSource.profiles) {
       fixProfile(profile);
     }
 
-    angular.forEach(dataSource.profiles, function (profile, index) {
+    console.log('dataSource.profiles', typeof (dataSource.profiles), Array.isArray(dataSource.profiles));
+
+    dataSource.profiles.forEach((profile, index) => {
+      console.log('profile', profile, index);
+
       if (!profile.title) {
         profile.title = 'Profile ' + (index + 1);
       }
+
       if (!profile.headers) {
         profile.headers = [];
-        dataSource.addHeader(profile.headers);
+        dataSource.addHeader([]);
       }
+
       if (!profile.respHeaders) {
         profile.respHeaders = [];
-        dataSource.addHeader(profile.respHeaders);
+        dataSource.addHeader([]);
       }
+
       if (!profile.filters) {
         profile.filters = [];
       }
+
       if (!profile.appendMode) {
         profile.appendMode = '';
       }
     });
   });
 
-  browser.storage.local.get(['selectedProfile'], (selectedProfileIdx) => {
-    if (!selectedProfileIdx) {
+  browser.storage.local.get(['selectedProfileIdx'], (res) => {
+    let { selectedProfileIdx } = res;
+    if (selectedProfileIdx === undefined) {
       return;
     }
 
     dataSource.selectedProfileIdx = selectedProfileIdx;
   });
 
-  browser.storage.local.get(['isPaused'], (isPaused) => {
-    if (selectedProfileIdx === undefined) {
+  browser.storage.local.get(['isPaused'], (res) => {
+    let { isPaused } = res;
+    if (isPaused === undefined) {
       return;
     }
 
     dataSource.isPaused = isPaused;
   });
 
-  browser.storage.local.get(['lockedTabId'], (lockedTabId) => {
+  browser.storage.local.get(['lockedTabId'], (res) => {
+    let { lockedTabId } = res;
     if (lockedTabId === undefined) {
       return;
     }
@@ -112,16 +126,22 @@ modHeader.factory('dataSource', function ($mdToast) {
   };
 
   dataSource.addFilter = function (filters) {
-    let urlRegex = '';
-    if (browser.storage.currentTabUrl) {
+    browser.storage.local.get(['currentTabUrl'], (res) => {
+      let { currentTabUrl } = res;
+
+      if (!currentTabUrl) {
+        return;
+      }
+
       const parser = document.createElement('a');
-      parser.href = browser.storage.currentTabUrl;
-      urlRegex = parser.origin + '/.*';
-    }
-    filters.push({
-      enabled: true,
-      type: 'urls',
-      urlRegex: urlRegex
+      parser.href = currentTabUrl;
+      let urlRegex = parser.origin + '/.*';
+
+      filters.push({
+        enabled: true,
+        type: 'urls',
+        urlRegex: urlRegex
+      });
     });
   };
 
@@ -151,7 +171,8 @@ modHeader.factory('dataSource', function ($mdToast) {
 
   dataSource.pause = function () {
     dataSource.isPaused = true;
-    browser.storage.isPaused = true;
+    browser.storage.local.set({ 'isPaused': true });
+
     $mdToast.show(
       $mdToast.simple()
         .content('ModHeader paused')
@@ -162,7 +183,8 @@ modHeader.factory('dataSource', function ($mdToast) {
 
   dataSource.play = function () {
     dataSource.isPaused = false;
-    browser.storage.removeItem('isPaused');
+    browser.storage.local.set({ 'isPaused': false });
+
     $mdToast.show(
       $mdToast.simple()
         .content('ModHeader unpaused')
@@ -172,8 +194,12 @@ modHeader.factory('dataSource', function ($mdToast) {
   };
 
   dataSource.lockToTab = function () {
-    dataSource.lockedTabId = browser.storage.activeTabId;
-    browser.storage.lockedTabId = dataSource.lockedTabId;
+    browser.storage.local.get(['activeTabId'], (res) => {
+      let { activeTabId } = res;
+      dataSource.lockedTabId = activeTabId;
+    });
+    browser.storage.local.set({ 'lockedTabId': dataSource.lockedTabId });
+
     $mdToast.show(
       $mdToast.simple()
         .content('Restricted ModHeader to the current tab')
@@ -184,7 +210,8 @@ modHeader.factory('dataSource', function ($mdToast) {
 
   dataSource.unlockAllTab = function () {
     dataSource.lockedTabId = null;
-    browser.storage.removeItem('lockedTabId');
+    browser.storage.local.set({ 'lockedTabId': -1 });
+
     $mdToast.show(
       $mdToast.simple()
         .content('Applying ModHeader to all tabs')
@@ -210,7 +237,9 @@ modHeader.factory('dataSource', function ($mdToast) {
       index++;
     }
 
-    const profile = {
+    dataSource.addHeader([]);
+
+    return {
       title: 'Profile ' + index,
       hideComment: true,
       headers: [],
@@ -218,15 +247,11 @@ modHeader.factory('dataSource', function ($mdToast) {
       filters: [],
       appendMode: ''
     };
-
-    dataSource.addHeader(profile.headers);
-
-    return profile;
   };
 
   dataSource.save = function () {
-    browser.storage.local.set({ 'profiles': angular.toJson(dataSource.profiles) });
-    browser.storage.local.set({ 'selectedProfileIdx': dataSource.profiles.indexOf(dataSource.selectedProfile) });
+    browser.storage.local.set({ 'profiles': dataSource.profiles });
+    browser.storage.local.set({ 'selectedProfileIdx': dataSource.selectedProfileIdx });
   };
 
   return dataSource;
@@ -241,12 +266,12 @@ modHeader.factory('profileService', function ($timeout, $mdSidenav, $mdUtil, $md
 
   var updateSelectedProfile_ = function () {
     $timeout(function () {
-      dataSource.selectedProfile = dataSource.profiles[dataSource.profiles.length - 1];
+      dataSource.selectedProfileIdx = dataSource.profiles.length - 1;
     }, 1);
   };
 
-  profileService.selectProfile = function (profile) {
-    dataSource.selectedProfile = profile;
+  profileService.selectProfile = function (idx) {
+    dataSource.selectedProfileIdx = idx;
     closeOptionsPanel_();
   };
 
@@ -381,7 +406,7 @@ modHeader.factory('profileService', function ($timeout, $mdSidenav, $mdUtil, $md
       }
       try {
         dataSource.profiles = profiles;
-        dataSource.selectedProfile = dataSource.profiles[0];
+        dataSource.selectedProfileIdx = 0;
         dataSource.save();
 
         $mdToast.show(

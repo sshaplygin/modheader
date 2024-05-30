@@ -42,10 +42,15 @@ function passFilters_(url, type, filters) {
 };
 
 function loadSelectedProfile_() {
-  let appendMode = false;
-  let headers = [];
-  let respHeaders = [];
-  let filters = [];
+  let profile = {
+    appendMode: false,
+    headers: [],
+    respHeaders: [],
+    filters: [],
+  };
+
+
+
   if (browser.storage.profiles) {
     const profiles = JSON.parse(browser.storage.profiles);
     if (!browser.storage.selectedProfileIdx) {
@@ -86,12 +91,8 @@ function loadSelectedProfile_() {
     headers = filterEnabledHeaders_(selectedProfile.headers);
     respHeaders = filterEnabledHeaders_(selectedProfile.respHeaders);
   }
-  return {
-    appendMode: appendMode,
-    headers: headers,
-    respHeaders: respHeaders,
-    filters: filters
-  };
+
+  return profile;
 };
 
 function modifyHeader(source, dest) {
@@ -265,7 +266,11 @@ browser.windows.onFocusChanged.addListener((windowId) => {
 });
 
 function saveStorageToCloud() {
+  console.log('call saveStorageToCloud');
+
   browser.storage.sync.get(null, (items) => {
+    console.log('get sync storage items', items);
+
     const keys = items ? Object.keys(items) : [];
     keys.sort();
 
@@ -273,8 +278,9 @@ function saveStorageToCloud() {
       items[keys[keys.length - 1]] != browser.storage.profiles) {
       const data = {};
       data[Date.now()] = browser.storage.profiles;
-      browser.storage.sync.set(data);
-      browser.storage.savedToCloud = true;
+      console.log('data', data);
+      // browser.storage.sync.set(data);
+      // browser.storage.savedToCloud = true;
     }
 
     if (keys.length >= MAX_PROFILES_IN_CLOUD) {
@@ -284,52 +290,63 @@ function saveStorageToCloud() {
 }
 
 function createContextMenu() {
-  if (browser.storage.isPaused) {
-    browser.contextMenus.update(
-      'pause',
-      {
-        title: 'Unpause ModHeader',
-        contexts: ['browser_action'],
-        onclick: () => {
-          browser.storage.removeItem('isPaused');
-          resetBadgeAndContextMenu();
-        }
-      });
-  } else {
-    browser.contextMenus.update(
-      'pause',
+  browser.storage.local.get(['isPaused'], (res) => {
+    let { isPaused } = res;
+
+    if (isPaused) {
+      browser.contextMenus.update('pause',
+        {
+          title: 'Unpause ModHeader',
+          contexts: ['browser_action'],
+          onclick: () => {
+            browser.storage.set({ 'isPaused': false });
+            resetBadgeAndContextMenu();
+          }
+        });
+      return;
+    }
+
+    browser.contextMenus.update('pause',
       {
         title: 'Pause ModHeader',
         contexts: ['browser_action'],
         onclick: () => {
-          browser.storage.isPaused = true;
+          browser.storage.set({ 'isPaused': true });
           resetBadgeAndContextMenu();
         }
       });
-  }
-  if (browser.storage.lockedTabId) {
-    browser.contextMenus.update(
-      'lock',
-      {
-        title: 'Unlock to all tabs',
-        contexts: ['browser_action'],
-        onclick: () => {
-          browser.storage.removeItem('lockedTabId');
-          resetBadgeAndContextMenu();
-        }
-      });
-  } else {
-    browser.contextMenus.update(
-      'lock',
+  });
+
+  browser.storage.local.get(['lockedTabId'], (res) => {
+    let { lockedTabId } = res;
+
+    if (lockedTabId != -1) {
+      browser.contextMenus.update('lock',
+        {
+          title: 'Unlock to all tabs',
+          contexts: ['browser_action'],
+          onclick: () => {
+            browser.storage.set({ 'lockedTabId': -1 });
+            resetBadgeAndContextMenu();
+          }
+        });
+      return;
+    }
+
+    browser.contextMenus.update('lock',
       {
         title: 'Lock to this tab',
         contexts: ['browser_action'],
         onclick: () => {
-          browser.storage.lockedTabId = browser.storage.activeTabId;
+          browser.storage.get(['activeTabId'], (res) => {
+            let { activeTabId } = res;
+            browser.storage.set({ 'lockedTabId': activeTabId });
+          });
+
           resetBadgeAndContextMenu();
         }
       });
-  }
+  });
 }
 
 function resetBadgeAndContextMenu() {
@@ -375,20 +392,35 @@ function initializeStorage() {
 
   // Async initialization.
   setTimeout(() => {
-    if (browser.storage.profiles && !browser.storage.savedToCloud) {
-      saveStorageToCloud();
-    }
+    browser.storage.local.get(['profiles', 'savedToCloud'], (res) => {
+      let { profiles, savedToCloud } = res;
 
-    if (!browser.storage.profiles) {
+      console.log('setTimeout', profiles, savedToCloud);
+
+      if (profiles.length != 0 && !savedToCloud) {
+        saveStorageToCloud();
+        return;
+      }
+
       browser.storage.sync.get(null, (items) => {
         const keys = items ? Object.keys(items) : [];
-        keys.sort();
-        if (keys.length > 0) {
-          browser.storage.profiles = items[keys[keys.length - 1]];
-          browser.storage.savedToCloud = true;
+
+        if (keys.length == 0) {
+          return;
         }
+
+        keys.sort();
+
+        console.log('keys', keys);
+
+        browser.storage.local.set({ 'profiles': [] });
+        console.log('set local profiles', items[keys[keys.length - 1]]);
+
+        // browser.storage.local.set({ 'profiles': items[keys[keys.length - 1]] });
+        // browser.storage.local.set({ 'profiles': items[keys[keys.length - 1]] });
+        // browser.storage.local.set({ 'savedToCloud': true });
       });
-    }
+    });
   }, 100);
 }
 
