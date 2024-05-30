@@ -33,7 +33,74 @@ function fixProfile(profile) {
 }
 
 modHeader.factory('dataSource', function ($mdToast) {
-  var dataSource = {};
+  let dataSource = {
+    predicate: '',
+    reverse: false,
+    isPaused: false,
+    lockedTabId: -1,
+    profiles: [],
+    selectedProfileIdx: -1,
+  };
+
+  browser.storage.local.get(['profiles'], (profiles) => {
+    console.log('profiles', profiles);
+
+    if (!profiles) {
+      dataSource.profiles.push(dataSource.createProfile());
+      dataSource.selectedProfileIdx = 0;
+
+      return;
+    }
+
+    dataSource.profiles = angular.fromJson(profiles);
+    for (let profile of dataSource.profiles) {
+      fixProfile(profile);
+    }
+
+    angular.forEach(dataSource.profiles, function (profile, index) {
+      if (!profile.title) {
+        profile.title = 'Profile ' + (index + 1);
+      }
+      if (!profile.headers) {
+        profile.headers = [];
+        dataSource.addHeader(profile.headers);
+      }
+      if (!profile.respHeaders) {
+        profile.respHeaders = [];
+        dataSource.addHeader(profile.respHeaders);
+      }
+      if (!profile.filters) {
+        profile.filters = [];
+      }
+      if (!profile.appendMode) {
+        profile.appendMode = '';
+      }
+    });
+  });
+
+  browser.storage.local.get(['selectedProfile'], (selectedProfileIdx) => {
+    if (!selectedProfileIdx) {
+      return;
+    }
+
+    dataSource.selectedProfileIdx = selectedProfileIdx;
+  });
+
+  browser.storage.local.get(['isPaused'], (isPaused) => {
+    if (selectedProfileIdx === undefined) {
+      return;
+    }
+
+    dataSource.isPaused = isPaused;
+  });
+
+  browser.storage.local.get(['lockedTabId'], (lockedTabId) => {
+    if (lockedTabId === undefined) {
+      return;
+    }
+
+    dataSource.lockedTabId = lockedTabId;
+  });
 
   var isExistingProfileTitle_ = function (title) {
     for (var i = 0; i < dataSource.profiles.length; ++i) {
@@ -158,58 +225,9 @@ modHeader.factory('dataSource', function ($mdToast) {
   };
 
   dataSource.save = function () {
-    browser.storage.profiles = angular.toJson(dataSource.profiles);
-    browser.storage.selectedProfileIdx = dataSource.profiles.indexOf(dataSource.selectedProfile);
+    browser.storage.local.set({ 'profiles': angular.toJson(dataSource.profiles) });
+    browser.storage.local.set({ 'selectedProfileIdx': dataSource.profiles.indexOf(dataSource.selectedProfile) });
   };
-
-  dataSource.predicate = '';
-  dataSource.reverse = false;
-
-  if (browser.storage.profiles) {
-    dataSource.profiles = angular.fromJson(browser.storage.profiles);
-    for (let profile of dataSource.profiles) {
-      fixProfile(profile);
-    }
-  } else {
-    dataSource.profiles = [];
-  }
-
-  if (dataSource.profiles.length == 0) {
-    dataSource.profiles.push(dataSource.createProfile());
-  }
-
-  angular.forEach(dataSource.profiles, function (profile, index) {
-    if (!profile.title) {
-      profile.title = 'Profile ' + (index + 1);
-    }
-    if (!profile.headers) {
-      profile.headers = [];
-      dataSource.addHeader(profile.headers);
-    }
-    if (!profile.respHeaders) {
-      profile.respHeaders = [];
-      dataSource.addHeader(profile.respHeaders);
-    }
-    if (!profile.filters) {
-      profile.filters = [];
-    }
-    if (!profile.appendMode) {
-      profile.appendMode = '';
-    }
-  });
-
-  if (browser.storage.selectedProfileIdx) {
-    dataSource.selectedProfile = dataSource.profiles[Number(browser.storage.selectedProfileIdx)];
-  }
-  if (!dataSource.selectedProfile) {
-    dataSource.selectedProfile = dataSource.profiles[0];
-  }
-  if (browser.storage.isPaused) {
-    dataSource.isPaused = browser.storage.isPaused;
-  }
-  if (browser.storage.lockedTabId) {
-    dataSource.lockedTabId = browser.storage.lockedTabId;
-  }
 
   return dataSource;
 });
@@ -236,8 +254,6 @@ modHeader.factory('profileService', function ($timeout, $mdSidenav, $mdUtil, $md
     dataSource.profiles.push(dataSource.createProfile());
     updateSelectedProfile_();
     closeOptionsPanel_();
-
-    dataSource.save();
   };
 
   profileService.cloneProfile = function (profile) {
