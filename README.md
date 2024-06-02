@@ -32,9 +32,9 @@ PS Supported only with local storage sync!
 
 | Filename | Screenshot |
 |-----------|----------|
-| Main page  | <img src="./screenshots/main_page.png" width="200" height="200"> |
-| Profiles  | <img src="./screenshots/profiles.png" width="200" height="200"> |
-| Setting  | <img src="./screenshots/settings.png"> |
+| Main page  | <img src="./screenshots/main_page.png" width="300" height="300"> |
+| Profiles  | <img src="./screenshots/profiles.png" width="300" height="300"> |
+| Setting  | <img src="./screenshots/settings.png" width="300" height="300"> |
 
 ## Forking and contribution
 
