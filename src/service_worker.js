@@ -329,7 +329,20 @@ function initializeStorage() {
   setupHeaderModListener();
 
   browser.storage.onChanged.addListener(function (changes, areaName) {
-    if (areaName == 'local' && (changes.profiles || changes.selectedProfileIdx)) {
+    console.log('onChange', changes);
+
+    if (areaName == 'local' && (changes.profiles || changes.selectedProfileIdx || changes.selectedProfile)) {
+      if (changes.selectedProfile) {
+        browser.storage.local.get(['profiles', 'selectedProfileIdx'], (res) => {
+          let { selectedProfileIdx, profiles } = res;
+
+          console.log(changes.selectedProfile, selectedProfileIdx, profiles);
+          profiles[selectedProfileIdx] = changes.selectedProfile.newValue;
+
+          browser.storage.local.set({ profiles: profiles });
+        });
+      }
+
       currentProfile = loadSelectedProfile_();
     }
 
@@ -364,8 +377,8 @@ function initializeStorage() {
 }
 
 function saveLocalToSyncStorage() {
-  browser.storage.local.get(['profiles', 'selectedProfileIdx'], (items) => {
-    let { profiles, selectedProfileIdx } = items;
+  browser.storage.local.get(['profiles', 'selectedProfileIdx'], (res) => {
+    let { profiles, selectedProfileIdx } = res;
 
     if (!profiles) {
       return;

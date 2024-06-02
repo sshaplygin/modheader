@@ -118,6 +118,8 @@ modHeader.factory('dataSource', function ($mdToast) {
         type: 'urls',
         urlRegex: urlRegex
       });
+
+      dataSource.updateSelectedProfile();
     });
   };
 
@@ -129,19 +131,19 @@ modHeader.factory('dataSource', function ($mdToast) {
       comment: ''
     });
 
-    dataSource.updateLocalProfiles();
+    dataSource.updateSelectedProfile();
   };
 
   dataSource.removeFilter = function (filters, filter) {
     filters.splice(filters.indexOf(filter), 1);
 
-    dataSource.updateLocalProfiles();
+    dataSource.updateSelectedProfile();
   };
 
   dataSource.removeHeader = function (headers, header) {
     headers.splice(headers.indexOf(header), 1);
 
-    dataSource.updateLocalProfiles();
+    dataSource.updateSelectedProfile();
   };
 
   dataSource.removeHeaderEnsureNonEmpty = function (headers, header) {
@@ -150,7 +152,7 @@ modHeader.factory('dataSource', function ($mdToast) {
       dataSource.addHeader(headers);
     }
 
-    dataSource.updateLocalProfiles();
+    dataSource.updateSelectedProfile();
   };
 
   dataSource.pause = () => {
@@ -175,11 +177,6 @@ modHeader.factory('dataSource', function ($mdToast) {
         .position('bottom')
         .hideDelay(1000)
     );
-  };
-
-  // todo: update selectedProfile
-  dataSource.onBlurInput = (val) => {
-    console.log(dataSource.profiles[dataSource.selectedProfileIdx].title);
   };
 
   dataSource.hasDuplicateHeaderName = function (headers, name) {
@@ -519,8 +516,12 @@ modHeader.factory('autocompleteService', function (dataSource) {
         cache.push(header[field]);
       }
     });
+
+    dataSource.updateSelectedProfile();
+
     return cache.filter(createFilterFor_(query));
   };
+
   return autocompleteService;
 });
 
