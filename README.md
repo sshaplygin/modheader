@@ -15,19 +15,26 @@ ModHeader is a browser extension that allow you to modify HTTP request and respo
 * Cloud backup
 * Tab locking!
 
+### New features from my fork branch
+
+* Fixex bug from origin Open Surce version. Supported add new profile
+* Moved to manifest v3
+* Add Request and Add Response headers in table
+* Random tips in 10% on opening
+* Online update counter with usesage headers
+* Added placeholders for input fields
+* Removed tab locking
+* Little bit refactoring
+
+PS Supported only with local storage sync!
+
 ## Screenshots
 
-### Main page
-
-<img src="./screenshots/main_page.png">
-
-### Profiles
-
-<img src="./screenshots/profiles.png">
-
-### Setting
-
-<img src="./screenshots/settings.png">
+| Filename | Screenshot |
+|-----------|----------|
+| Main page  | <img src="./screenshots/main_page.png" width="200" height="200"> |
+| Profiles  | <img src="./screenshots/profiles.png" width="200" height="200"> |
+| Setting  | <img src="./screenshots/settings.png"> |
 
 ## Forking and contribution
 

@@ -6,81 +6,31 @@ modHeader.config(['$compileProvider', ($compileProvider) => {
   $compileProvider.debugInfoEnabled(true);
 }]);
 
-// modHeader.config(['$provide', function ($provide) {
-//   $provide.decorator('$q', ['$delegate', '$exceptionHandler', function ($delegate, $exceptionHandler) {
-//     var $q = $delegate;
-
-//     $q.defer = function () {
-//       var deferred = $delegate.defer();
-
-//       deferred.promise.catch(function (reason) {
-//         $exceptionHandler(reason);
-//       });
-
-//       return deferred;
-//     };
-
-//     return $q;
-//   }]);
-// }]);
-
-// modHeader.factory('$exceptionHandler', function () {
-//   return function (exception, cause) {
-//     console.error('Exception:', exception, 'Cause:', cause);
-//   };
-// });
-
-
-// modHeader.config(function ($provide) {
-//   $provide.decorator('$q', function ($delegate, $exceptionHandler) {
-//     var $q = $delegate;
-
-//     // Переопределяем метод defer, чтобы добавить обработку ошибок
-//     $q.defer = function () {
-//       var deferred = $delegate.defer();
-
-//       deferred.promise.catch(function (reason) {
-//         // Обработка отклонения промиса
-//         $exceptionHandler(reason);
-//       });
-
-//       return deferred;
-//     };
-
-//     return $q;
-//   });
-// });
-
-// modHeader.factory('$exceptionHandler', function () {
-//   return function (exception, cause) {
-//     console.error('Ошибка:', exception, 'Причина:', cause);
-//     // Дополнительная логика для обработки ошибок
-//   };
-// });
-
 function fixProfileFilters(profile) {
   if (!profile.filters) {
     return;
   }
 
   for (let filter of profile.filters) {
-    if (filter.urlPattern) {
-      const urlPattern = filter.urlPattern;
-      const joiner = [];
-      for (let i = 0; i < urlPattern.length; ++i) {
-        let c = urlPattern.charAt(i);
-        if (SPECIAL_CHARS.indexOf(c) >= 0) {
-          c = '\\' + c;
-        } else if (c == '\\') {
-          c = '\\\\';
-        } else if (c == '*') {
-          c = '.*';
-        }
-        joiner.push(c);
-      }
-      delete filter.urlPattern;
-      filter.urlRegex = joiner.join('');
+    if (!filter.urlPattern) {
+      continue;
     }
+
+    const urlPattern = filter.urlPattern;
+    const joiner = [];
+    for (let i = 0; i < urlPattern.length; ++i) {
+      let c = urlPattern.charAt(i);
+      if (SPECIAL_CHARS.indexOf(c) >= 0) {
+        c = '\\' + c;
+      } else if (c == '\\') {
+        c = '\\\\';
+      } else if (c == '*') {
+        c = '.*';
+      }
+      joiner.push(c);
+    }
+    delete filter.urlPattern;
+    filter.urlRegex = joiner.join('');
   }
 }
 
@@ -154,8 +104,6 @@ modHeader.factory('dataSource', function ($mdToast) {
   dataSource.addFilter = function (filters) {
     browser.storage.local.get(['currentTabUrl'], (res) => {
       let { currentTabUrl } = res;
-
-      console.log('currentTabUrl', currentTabUrl);
 
       if (!currentTabUrl) {
         return;
