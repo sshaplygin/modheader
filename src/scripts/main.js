@@ -134,7 +134,7 @@ modHeader.factory('dataSource', function($mdToast) {
   };
 
   dataSource.createProfile = function() {
-    const index = 1;
+    let index = 1;
     while (isExistingProfileTitle_('Profile ' + index)) {
       ++index;
     }
