@@ -64,8 +64,6 @@ function loadSelectedProfile_() {
       updateSelectedProfileIdx = true;
     }
 
-    console.log('profiles and selectedProfileIdx', profiles, selectedProfileIdx);
-
     const selectedProfile = profiles[selectedProfileIdx];
 
     function filterEnabledHeaders_(headers) {
@@ -243,8 +241,6 @@ function onTabUpdated(tab) {
     return;
   }
 
-  console.log('tab', tab);
-
   browser.storage.local.set({ currentTabUrl: undefined });
   // Since we don't have access to the "tabs" permission, we may not have
   // access to the url property all the time. So, match it against the URL
@@ -260,19 +256,11 @@ function onTabUpdated(tab) {
 
   // Only set the currentTabUrl property if the tab is active and the window
   // is in focus.
-  browser.windows.get(tab.windowId, {}, (win) => {
-    if (win.focused) {
-      console.log('windowId', win);
+  browser.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    browser.storage.local.set({ currentTabUrl: tabs[0].url });
 
-      browser.storage.local.set({ currentTabUrl: url });
-    }
+    resetBadgeAndContextMenu();
   });
-
-  if (!url) {
-    return;
-  }
-
-  resetBadgeAndContextMenu();
 }
 
 function createContextMenu() {
@@ -308,23 +296,28 @@ function resetBadgeAndContextMenu() {
   browser.storage.local.get(['isPaused'], (items) => {
     let { isPaused } = items;
 
-    if (isPaused) {
-      browser.action.setIcon({ path: 'icon_bw.png' });
-      browser.action.setBadgeText({ text: '\u275A\u275A' });
-      browser.action.setBadgeBackgroundColor({ color: '#666' });
-      createContextMenu();
+    let iconsPath = 'icon_bw.png';
+    let badgeText = '\u275A\u275A';
+    let color = '#666';
 
-      return;
+    if (!isPaused) {
+      const numHeaders = (currentProfile.reqHeaders.length + currentProfile.respHeaders.length);
+      console.log('numHeaders', numHeaders);
+      if (numHeaders == 0) {
+        color = '';
+        iconsPath = 'icon_bw.png';
+        badgeText = '';
+      } else {
+        badgeText = numHeaders.toString();
+        color = '#db4343';
+        iconsPath = 'icon.png';
+      }
     }
 
-    const numHeaders = (currentProfile.reqHeaders.length + currentProfile.respHeaders.length);
-    if (numHeaders == 0) {
-      browser.action.setBadgeText({ text: '' });
-      browser.action.setIcon({ path: 'icon_bw.png' });
-    } else {
-      browser.action.setIcon({ path: 'icon.png' });
-      browser.action.setBadgeText({ text: numHeaders.toString() });
-      browser.action.setBadgeBackgroundColor({ color: '#db4343' });
+    browser.action.setIcon({ path: iconsPath });
+    browser.action.setBadgeText({ text: badgeText });
+    if (color) {
+      browser.action.setBadgeBackgroundColor();
     }
 
     createContextMenu();
@@ -335,29 +328,12 @@ function initializeStorage() {
   currentProfile = loadSelectedProfile_();
   setupHeaderModListener();
 
-  // todo:
   browser.storage.onChanged.addListener(function (changes, areaName) {
-
-    // currentProfile = loadSelectedProfile_();
-    // setupHeaderModListener();
-
-
-    if (areaName == 'local') {
-      if (changes.profiles || changes.selectedProfileIdx) {
-        currentProfile = loadSelectedProfile_();
-      }
-
-
-      console.log('currentProfile', currentProfile);
-
-      console.log(changes, areaName);
+    if (areaName == 'local' && (changes.profiles || changes.selectedProfileIdx)) {
+      currentProfile = loadSelectedProfile_();
     }
 
     resetBadgeAndContextMenu();
-
-    // if (areaName === 'sync' && changes.profiles) {
-    //   saveSyncToLocalStorage();
-    // }
   });
 
   browser.contextMenus.create({
@@ -367,7 +343,7 @@ function initializeStorage() {
   });
 
   browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    onTabUpdated(tabId, changeInfo, tab);
+    onTabUpdated(tabId);
   });
 
   browser.tabs.onActivated.addListener((activeInfo) => {
@@ -380,50 +356,11 @@ function initializeStorage() {
     }
 
     browser.windows.get(windowId, { populate: true }, (win) => {
-      console.log('win', win);
-
       for (let tab of win.tabs) {
         onTabUpdated(tab);
       }
     });
   });
-
-  // self.addEventListener('storage', function (event) {
-  //   currentProfile = loadSelectedProfile_();
-  //   setupHeaderModListener();
-  //   resetBadgeAndContextMenu();
-
-  //   console.log('storage', event);
-
-  //   if (event.key == 'profiles') {
-  //saveLocalToSyncStorage();
-  // }
-  // });
-
-  // todo: Update sync storage
-  // setTimeout(() => {
-  //   browser.storage.local.get(['profiles', 'savedToCloud'], (res) => {
-  //     let { profiles, savedToCloud } = res;
-
-  //     console.log('setTimeout', profiles, savedToCloud);
-
-  //     if (profiles.length != 0 && !savedToCloud) {
-  //       saveLocalToSyncStorage();
-  //       return;
-  //     }
-
-  //     browser.storage.sync.get(['profiles'], (items) => {
-  //       let { profiles } = items;
-
-  //       // const keys = items ? Object.keys(items) : [];
-
-  //       if (!profiles) {
-  //         browser.storage.local.set({ profiles: profiles });
-  //         browser.storage.local.set({ savedToCloud: true });
-  //       }
-  //     });
-  //   });
-  // }, 100);
 }
 
 function saveLocalToSyncStorage() {

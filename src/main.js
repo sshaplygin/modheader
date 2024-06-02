@@ -84,43 +84,6 @@ function fixProfileFilters(profile) {
   }
 }
 
-function setDefaultProfileField(idx, profile, titlePrefix = 'Profile ') {
-  if (!profile) {
-    return;
-  }
-
-  if (!profile.title) {
-    profile.title = titlePrefix + (idx + 1);
-  }
-
-  if (!profile.reqHeaders) {
-    profile.reqHeaders = [
-      {
-        enabled: true,
-        name: '',
-        value: '',
-        comment: ''
-      }
-    ];
-  }
-
-  if (!profile.respHeaders) {
-    profile.respHeaders = [];
-  }
-
-  if (!profile.filters) {
-    profile.filters = [];
-  }
-
-  if (!profile.appendMode) {
-    profile.appendMode = false;
-  }
-
-  if (!profile.createdAt) {
-    profile.createdAt = Date.now();
-  }
-}
-
 modHeader.factory('dataSource', function ($mdToast) {
   let dataSource = {
     predicate: '',
@@ -133,8 +96,6 @@ modHeader.factory('dataSource', function ($mdToast) {
 
   browser.storage.local.get(['profiles'], (res) => {
     let { profiles } = res;
-
-    console.log('load profiles', profiles);
 
     if (!profiles || profiles.length === 0) {
       dataSource.profiles.push(dataSource.createProfile());
@@ -419,7 +380,6 @@ modHeader.factory('profileService', function ($timeout, $mdSidenav, $mdUtil, $md
     }
   };
 
-  // todo: fixme
   profileService.importProfile = function (event) {
     $mdDialog.show({
       parent: angular.element(document.body),
@@ -634,8 +594,6 @@ modHeader.controller('AppController', function (
   $scope, $mdSidenav, $mdUtil, $mdToast,
   dataSource, profileService, autocompleteService
 ) {
-  console.log('create');
-
   $scope.toggleSidenav = $mdUtil.debounce(() => {
     $mdSidenav('left').toggle();
   }, 300);
@@ -684,3 +642,40 @@ modHeader.controller('ToastCtrl', function ($mdToast, $mdDialog, $document, $sco
     browser.tabs.create({ url: url });
   };
 });
+
+function setDefaultProfileField(idx, profile, titlePrefix = 'Profile ') {
+  if (!profile) {
+    return;
+  }
+
+  if (!profile.title) {
+    profile.title = titlePrefix + (idx + 1);
+  }
+
+  if (!profile.reqHeaders) {
+    profile.reqHeaders = [
+      {
+        enabled: true,
+        name: '',
+        value: '',
+        comment: ''
+      }
+    ];
+  }
+
+  if (!profile.respHeaders) {
+    profile.respHeaders = [];
+  }
+
+  if (!profile.filters) {
+    profile.filters = [];
+  }
+
+  if (!profile.appendMode) {
+    profile.appendMode = false;
+  }
+
+  if (!profile.createdAt) {
+    profile.createdAt = Date.now();
+  }
+}
