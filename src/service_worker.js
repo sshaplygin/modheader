@@ -317,7 +317,7 @@ function resetBadgeAndContextMenu() {
     browser.action.setIcon({ path: iconsPath });
     browser.action.setBadgeText({ text: badgeText });
     if (color) {
-      browser.action.setBadgeBackgroundColor();
+      browser.action.setBadgeBackgroundColor({ color: color });
     }
 
     createContextMenu();
