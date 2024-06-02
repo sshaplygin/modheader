@@ -7,6 +7,11 @@
     "service_worker": "service_worker.js",
     "type": "module"
   },
+  "icons": {
+    "16": "icon_16.png",
+    "48": "icon_48.png",
+    "128": "icon_128.png"
+  },
   "action": {
     "default_title": "Modify Headers",
     "default_popup": "popup.html",
