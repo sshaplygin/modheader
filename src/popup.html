@@ -21,21 +21,11 @@
         <span>
           <md-input-container md-no-float>
             <input ng-model="dataSource.profiles[dataSource.selectedProfileIdx].title" type="text"
-              placeholder="Profile name" class="profile-title">
+              placeholder="Profile name" class="profile-title" ng-blur="dataSource.onBlurInput()">
           </md-input-container>
         </span>
       </h2>
       <span flex></span>
-
-      <md-button aria-label="Tab" md-no-ink ng-show="!dataSource.lockedTabId" ng-click="dataSource.lockToTab()">
-        <md-icon md-svg-src="images/ic_lock_18px.svg"></md-icon>
-        Tab lock
-      </md-button>
-
-      <md-button aria-label="Tab" md-no-ink ng-show="dataSource.lockedTabId" ng-click="dataSource.unlockAllTab()">
-        <md-icon md-svg-src="images/ic_lock_open_18px.svg"></md-icon>
-        Unlock
-      </md-button>
 
       <md-button class="md-icon-button" aria-label="Pause" md-no-ink ng-show="!dataSource.isPaused"
         ng-click="dataSource.pause()">
@@ -54,7 +44,7 @@
         <md-menu-content width="4">
           <md-menu-item>
             <md-button md-no-ink
-              ng-click="dataSource.addHeader(dataSource.profiles[dataSource.selectedProfileIdx].headers)">
+              ng-click="dataSource.addHeader(dataSource.profiles[dataSource.selectedProfileIdx].reqHeaders)">
               Request header
             </md-button>
           </md-menu-item>
@@ -87,15 +77,13 @@
           </md-menu-item>
           <md-menu-divider></md-menu-divider>
           <md-menu-item>
-            <md-button md-no-ink
-              ng-click="profileService.deleteProfile(dataSource.profiles[dataSource.selectedProfileIdx])">
+            <md-button md-no-ink ng-click="profileService.deleteProfile(dataSource.selectedProfileIdx)">
               <md-icon md-svg-src="images/ic_delete_black_24px.svg" md-menu-align-target></md-icon>
               Delete profile
             </md-button>
           </md-menu-item>
           <md-menu-item>
-            <md-button md-no-ink
-              ng-click="profileService.cloneProfile(dataSource.profiles[dataSource.selectedProfileIdx])">
+            <md-button md-no-ink ng-click="profileService.cloneProfile(dataSource.selectedProfileIdx)">
               <md-icon md-svg-src="images/ic_content_copy_black_24px.svg"></md-icon>
               Clone profile
             </md-button>
@@ -108,8 +96,7 @@
             </md-button>
           </md-menu-item>
           <md-menu-item>
-            <md-button md-no-ink
-              ng-click="profileService.importProfile($event, dataSource.profiles[dataSource.selectedProfileIdx])">
+            <md-button md-no-ink ng-click="profileService.importProfile($event)">
               <md-icon md-svg-src="images/ic_file_upload_24px.svg"></md-icon>
               Import profile
             </md-button>
@@ -147,7 +134,7 @@
         </md-checkbox>
         <p>{{profile.title}}</p>
       </md-list-item>
-      <md-list-item ng-click="profileService.addProfile()">
+      <md-list-item ng-click="profileService.createProfile()">
         <md-icon md-svg-src="images/ic_add_18px.svg"></md-icon>
         <p>Add Profile</p>
       </md-list-item>
@@ -176,40 +163,44 @@
         </span>
       </div>
     </div>
-    <section>
+    <section class="data-table">
       <div class="section-title">Request Headers</div>
-      <div ng-repeat="header in dataSource.profiles[dataSource.selectedProfileIdx].headers" class="header-row"
+      <div ng-repeat="header in dataSource.profiles[dataSource.selectedProfileIdx].reqHeaders" class="header-row"
         layout="row">
         <md-checkbox ng-model="header.enabled" md-no-ink class="enable-checkbox" aria-label="Enabled"></md-checkbox>
         <md-autocomplete md-search-text="header.name" input-name="headerName" md-items="item in autocompleteService.query(
           autocompleteService.requestHeaderNames,
-          dataSource.profiles[dataSource.selectedProfileIdx].headers,
+          dataSource.profiles[dataSource.selectedProfileIdx].reqHeaders,
           'name',
-          header.name)" md-item-text="item" md-autoselect="true" md-floating-label="Name">
+          header.name)" md-item-text="item" md-autoselect="true" md-floating-label="Name" placeholder="Name">
           <md-item-template>
             <span md-highlight-text="header.name">{{item}}</span>
           </md-item-template>
         </md-autocomplete>
         <md-autocomplete md-search-text="header.value" input-name="headerValue" md-items="item in autocompleteService.query(
           autocompleteService.requestHeaderValues,
-          dataSource.profiles[dataSource.selectedProfileIdx].headers,
+          dataSource.profiles[dataSource.selectedProfileIdx].reqHeaders,
           'value',
-          header.value)" md-item-text="item" md-autoselect="true" md-floating-label="Value" flex>
+          header.value)" md-item-text="item" md-autoselect="true" md-floating-label="Value" placeholder="Value" flex>
           <md-item-template>
             <span md-highlight-text="header.value">{{item}}</span>
           </md-item-template>
         </md-autocomplete>
         <md-autocomplete md-search-text="header.comment" input-name="headerComment" md-items="[]"
           ng-if="!dataSource.profiles[dataSource.selectedProfileIdx].hideComment" md-floating-label="Comment"
-          class="comment-autocomplete">
+          placeholder="Comment" class="comment-autocomplete">
         </md-autocomplete>
         <md-button class="md-icon-button" md-no-ink
-          ng-click="dataSource.removeHeaderEnsureNonEmpty(dataSource.profiles[dataSource.selectedProfileIdx].headers, header)">
+          ng-click="dataSource.removeHeaderEnsureNonEmpty(dataSource.profiles[dataSource.selectedProfileIdx].reqHeaders, header)">
           <md-icon md-svg-icon="md-close" class="remove-button-icon"></md-icon>
         </md-button>
       </div>
+      <md-list-item ng-click="dataSource.addHeader(dataSource.profiles[dataSource.selectedProfileIdx].reqHeaders)">
+        <md-icon md-svg-src="images/ic_add_18px.svg"></md-icon>
+        <p>Add Request Header</p>
+      </md-list-item>
     </section>
-    <div ng-if="dataSource.profiles[dataSource.selectedProfileIdx].respHeaders.length">
+    <section class="data-table" ng-if="dataSource.profiles[dataSource.selectedProfileIdx].respHeaders.length">
       <div class="section-title">Response Headers</div>
       <div ng-repeat="header in dataSource.profiles[dataSource.selectedProfileIdx].respHeaders" class="header-row"
         layout="row">
@@ -218,7 +209,7 @@
           autocompleteService.responseHeaderNames,
           dataSource.profiles[dataSource.selectedProfileIdx].respHeaders,
           'name',
-          header.name)" md-item-text="item" md-autoselect="true" md-floating-label="Name">
+          header.name)" md-item-text="item" md-autoselect="true" md-floating-label="Name" placeholder="Name">
           <md-item-template>
             <span md-highlight-text="header.name">{{item}}</span>
           </md-item-template>
@@ -227,22 +218,26 @@
           autocompleteService.responseHeaderValues,
           dataSource.profiles[dataSource.selectedProfileIdx].respHeaders,
           'value',
-          header.value)" md-item-text="item" md-autoselect="true" md-floating-label="Value" flex>
+          header.value)" md-item-text="item" md-autoselect="true" md-floating-label="Value" placeholder="Value" flex>
           <md-item-template>
             <span md-highlight-text="header.value">{{item}}</span>
           </md-item-template>
         </md-autocomplete>
         <md-autocomplete md-search-text="header.comment" input-name="headerComment" md-items="[]"
           ng-if="!dataSource.profiles[dataSource.selectedProfileIdx].hideComment" md-floating-label="Comment"
-          class="comment-autocomplete">
+          placeholder="Comment" class="comment-autocomplete">
         </md-autocomplete>
         <md-button class="md-icon-button" md-no-ink
           ng-click="dataSource.removeHeader(dataSource.profiles[dataSource.selectedProfileIdx].respHeaders, header)">
           <md-icon md-svg-icon="md-close" class="remove-button-icon"></md-icon>
         </md-button>
       </div>
-    </div>
-    <div ng-if='dataSource.profiles[dataSource.selectedProfileIdx].filters.length'>
+      <md-list-item ng-click="dataSource.addHeader(dataSource.profiles[dataSource.selectedProfileIdx].respHeaders)">
+        <md-icon md-svg-src="images/ic_add_18px.svg"></md-icon>
+        <p>Add Response Header</p>
+      </md-list-item>
+    </section>
+    <section class="data-table" ng-if='dataSource.profiles[dataSource.selectedProfileIdx].filters.length'>
       <div class="section-title">Filters</div>
       <div ng-repeat="filter in dataSource.profiles[dataSource.selectedProfileIdx].filters" class="header-row"
         layout="row">
@@ -275,6 +270,6 @@
           <md-icon md-svg-icon="md-close" class="remove-button-icon"></md-icon>
         </md-button>
       </div>
-    </div>
+    </section>
   </md-content>
 </body>
