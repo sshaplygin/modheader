@@ -42,16 +42,29 @@ function passFilters_(url, type, filters) {
 };
 
 function loadSelectedProfile_() {
-  let appendMode = false;
-  let headers = [];
-  let respHeaders = [];
-  let filters = [];
-  if (browser.storage.profiles) {
-    const profiles = JSON.parse(browser.storage.profiles);
-    if (!browser.storage.selectedProfileIdx) {
-      browser.storage.selectedProfileIdx = 0;
+  let profile = {
+    appendMode: false,
+    reqHeaders: [],
+    respHeaders: [],
+    filters: [],
+    createdAt: Date.now(),
+  };
+
+  browser.storage.local.get(['profiles', 'selectedProfileIdx'], (items) => {
+    let { profiles, selectedProfileIdx } = items;
+
+    if (!profiles || !profiles.length) {
+      return;
     }
-    const selectedProfile = profiles[browser.storage.selectedProfileIdx];
+
+    // set default selected profile
+    let updateSelectedProfileIdx = false;
+    if (selectedProfileIdx == -1) {
+      selectedProfileIdx = 0;
+      updateSelectedProfileIdx = true;
+    }
+
+    const selectedProfile = profiles[selectedProfileIdx];
 
     function filterEnabledHeaders_(headers) {
       let output = [];
@@ -63,10 +76,12 @@ function loadSelectedProfile_() {
       }
       return output;
     };
+
     for (let filter of selectedProfile.filters) {
       if (filter.urlPattern) {
         const urlPattern = filter.urlPattern;
         const joiner = [];
+
         for (let i = 0; i < urlPattern.length; ++i) {
           let c = urlPattern.charAt(i);
           if (SPECIAL_CHARS.indexOf(c) >= 0) {
@@ -80,18 +95,20 @@ function loadSelectedProfile_() {
         }
         filter.urlRegex = joiner.join('');
       }
-      filters.push(filter);
+
+      profile.filters.push(filter);
     }
-    appendMode = selectedProfile.appendMode;
-    headers = filterEnabledHeaders_(selectedProfile.headers);
-    respHeaders = filterEnabledHeaders_(selectedProfile.respHeaders);
-  }
-  return {
-    appendMode: appendMode,
-    headers: headers,
-    respHeaders: respHeaders,
-    filters: filters
-  };
+
+    profile.appendMode = selectedProfile.appendMode;
+    profile.reqHeaders = filterEnabledHeaders_(selectedProfile.reqHeaders);
+    profile.respHeaders = filterEnabledHeaders_(selectedProfile.respHeaders);
+
+    if (updateSelectedProfileIdx) {
+      browser.storage.local.set({ 'selectedProfileIdx': selectedProfileIdx });
+    }
+  });
+
+  return profile;
 };
 
 function modifyHeader(source, dest) {
@@ -139,7 +156,7 @@ function modifyRequestHeaderHandler_(details) {
     || browser.storage.lockedTabId == details.tabId) {
     if (currentProfile
       && passFilters_(details.url, details.type, currentProfile.filters)) {
-      modifyHeader(currentProfile.headers, details.requestHeaders);
+      modifyHeader(currentProfile.reqHeaders, details.requestHeaders);
     }
   }
   return { requestHeaders: details.requestHeaders };
@@ -149,6 +166,7 @@ function modifyResponseHeaderHandler_(details) {
   if (browser.storage.isPaused) {
     return {};
   }
+
   if (!browser.storage.lockedTabId
     || browser.storage.lockedTabId == details.tabId) {
     if (currentProfile
@@ -168,6 +186,7 @@ function getChromeVersion() {
   if (pieces == null || pieces.length != 5) {
     return {};
   }
+
   pieces = pieces.map(piece => parseInt(piece, 10));
   return {
     major: pieces[1],
@@ -183,10 +202,10 @@ function setupHeaderModListener() {
 
   // Chrome 72+ requires 'extraHeaders' to be added for some headers to be modifiable.
   // Older versions break with it.
-  if (currentProfile.headers.length > 0) {
+  if (currentProfile.reqHeaders.length > 0) {
     let requiresExtraRequestHeaders = false;
     if (CHROME_VERSION.major >= 72) {
-      for (let header of currentProfile.headers) {
+      for (let header of currentProfile.reqHeaders) {
         if (EXTRA_REQUEST_HEADERS.has(header.name.toLowerCase())) {
           requiresExtraRequestHeaders = true;
           break;
@@ -218,145 +237,91 @@ function setupHeaderModListener() {
 }
 
 function onTabUpdated(tab) {
-  if (tab.active) {
-    delete browser.storage.currentTabUrl;
-    // Since we don't have access to the "tabs" permission, we may not have
-    // access to the url property all the time. So, match it against the URL
-    // found during request modification.
-    let url = tab.url;
-    if (url) {
-      tabUrls[tab.id] = url;
-    } else {
-      url = tabUrls[tab.id];
-    }
-    browser.storage.activeTabId = tab.id;
-
-    // Only set the currentTabUrl property if the tab is active and the window
-    // is in focus.
-    browser.windows.get(tab.windowId, {}, (win) => {
-      if (win.focused) {
-        browser.storage.currentTabUrl = url;
-      }
-    });
-    if (!url) {
-      return;
-    }
-    resetBadgeAndContextMenu();
-  }
-}
-
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  onTabUpdated(tab);
-});
-
-browser.tabs.onActivated.addListener((activeInfo) => {
-  browser.tabs.get(activeInfo.tabId, onTabUpdated);
-});
-
-browser.windows.onFocusChanged.addListener((windowId) => {
-  if (windowId == browser.windows.WINDOW_ID_NONE) {
+  if (!tab.active) {
     return;
   }
-  browser.windows.get(windowId, { populate: true }, (win) => {
-    for (let tab of win.tabs) {
-      onTabUpdated(tab);
-    }
-  });
-});
 
-function saveStorageToCloud() {
-  browser.storage.sync.get(null, (items) => {
-    const keys = items ? Object.keys(items) : [];
-    keys.sort();
+  browser.storage.local.set({ currentTabUrl: undefined });
+  // Since we don't have access to the "tabs" permission, we may not have
+  // access to the url property all the time. So, match it against the URL
+  // found during request modification.
+  let url = tab.url;
+  if (url) {
+    tabUrls[tab.id] = url;
+  } else {
+    url = tabUrls[tab.id];
+  }
 
-    if (keys.length == 0 ||
-      items[keys[keys.length - 1]] != browser.storage.profiles) {
-      const data = {};
-      data[Date.now()] = browser.storage.profiles;
-      browser.storage.sync.set(data);
-      browser.storage.savedToCloud = true;
-    }
+  browser.storage.local.set({ 'activeTabId': tab.id });
 
-    if (keys.length >= MAX_PROFILES_IN_CLOUD) {
-      browser.storage.sync.remove(keys.slice(0, keys.length - MAX_PROFILES_IN_CLOUD));
-    }
+  // Only set the currentTabUrl property if the tab is active and the window
+  // is in focus.
+  browser.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    browser.storage.local.set({ currentTabUrl: tabs[0].url });
+
+    resetBadgeAndContextMenu();
   });
 }
 
 function createContextMenu() {
-  if (browser.storage.isPaused) {
-    browser.contextMenus.update(
-      'pause',
-      {
-        title: 'Unpause ModHeader',
-        contexts: ['browser_action'],
-        onclick: () => {
-          browser.storage.removeItem('isPaused');
-          resetBadgeAndContextMenu();
-        }
-      });
-  } else {
-    browser.contextMenus.update(
-      'pause',
+  browser.storage.local.get(['isPaused'], (items) => {
+    let { isPaused } = items;
+
+    if (isPaused) {
+      browser.contextMenus.update('pause',
+        {
+          title: 'Unpause ModHeader',
+          contexts: ['browser_action'],
+          onclick: () => {
+            browser.storage.local.set({ 'isPaused': false });
+            resetBadgeAndContextMenu();
+          }
+        });
+      return;
+    }
+
+    browser.contextMenus.update('pause',
       {
         title: 'Pause ModHeader',
         contexts: ['browser_action'],
         onclick: () => {
-          browser.storage.isPaused = true;
+          browser.storage.local.set({ 'isPaused': true });
           resetBadgeAndContextMenu();
         }
       });
-  }
-  if (browser.storage.lockedTabId) {
-    browser.contextMenus.update(
-      'lock',
-      {
-        title: 'Unlock to all tabs',
-        contexts: ['browser_action'],
-        onclick: () => {
-          browser.storage.removeItem('lockedTabId');
-          resetBadgeAndContextMenu();
-        }
-      });
-  } else {
-    browser.contextMenus.update(
-      'lock',
-      {
-        title: 'Lock to this tab',
-        contexts: ['browser_action'],
-        onclick: () => {
-          browser.storage.lockedTabId = browser.storage.activeTabId;
-          resetBadgeAndContextMenu();
-        }
-      });
-  }
+  });
 }
 
 function resetBadgeAndContextMenu() {
-  if (browser.storage.isPaused) {
-    browser.action.setIcon({ path: 'icon_bw.png' });
-    browser.action.setBadgeText({ text: '\u275A\u275A' });
-    browser.action.setBadgeBackgroundColor({ color: '#666' });
+  browser.storage.local.get(['isPaused'], (items) => {
+    let { isPaused } = items;
+
+    let iconsPath = 'icon_bw.png';
+    let badgeText = '\u275A\u275A';
+    let color = '#666';
+
+    if (!isPaused) {
+      const numHeaders = (currentProfile.reqHeaders.length + currentProfile.respHeaders.length);
+      console.log('numHeaders', numHeaders);
+      if (numHeaders == 0) {
+        color = '';
+        iconsPath = 'icon_bw.png';
+        badgeText = '';
+      } else {
+        badgeText = numHeaders.toString();
+        color = '#db4343';
+        iconsPath = 'icon.png';
+      }
+    }
+
+    browser.action.setIcon({ path: iconsPath });
+    browser.action.setBadgeText({ text: badgeText });
+    if (color) {
+      browser.action.setBadgeBackgroundColor();
+    }
+
     createContextMenu();
-    return;
-  }
-
-  const numHeaders = (currentProfile.headers.length + currentProfile.respHeaders.length);
-  if (numHeaders == 0) {
-    browser.action.setBadgeText({ text: '' });
-    browser.action.setIcon({ path: 'icon_bw.png' });
-  } else if (browser.storage.lockedTabId
-    && browser.storage.lockedTabId != browser.storage.activeTabId) {
-    browser.action.setIcon({ path: 'icon_bw.png' });
-    browser.action.setBadgeText({ text: '\uD83D\uDD12' });
-    browser.action.setBadgeBackgroundColor({ color: '#ff8e8e' });
-  } else {
-    browser.action.setIcon({ path: 'icon.png' });
-    browser.action.setBadgeText({ text: numHeaders.toString() });
-    browser.action.setBadgeBackgroundColor({ color: '#db4343' });
-  }
-
-  createContextMenu();
+  });
 }
 
 function initializeStorage() {
@@ -364,32 +329,56 @@ function initializeStorage() {
   setupHeaderModListener();
 
   browser.storage.onChanged.addListener(function (changes, areaName) {
-    currentProfile = loadSelectedProfile_();
-    setupHeaderModListener();
-    resetBadgeAndContextMenu();
-
-    if (areaName === 'sync' && changes.profiles) {
-      saveStorageToCloud();
+    if (areaName == 'local' && (changes.profiles || changes.selectedProfileIdx)) {
+      currentProfile = loadSelectedProfile_();
     }
+
+    resetBadgeAndContextMenu();
   });
 
-  // Async initialization.
-  setTimeout(() => {
-    if (browser.storage.profiles && !browser.storage.savedToCloud) {
-      saveStorageToCloud();
+  browser.contextMenus.create({
+    id: 'lock',
+    title: 'Lock',
+    contexts: ['browser_action'],
+  });
+
+  browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    onTabUpdated(tabId);
+  });
+
+  browser.tabs.onActivated.addListener((activeInfo) => {
+    browser.tabs.get(activeInfo.tabId, onTabUpdated);
+  });
+
+  browser.windows.onFocusChanged.addListener((windowId) => {
+    if (windowId == browser.windows.WINDOW_ID_NONE) {
+      return;
     }
 
-    if (!browser.storage.profiles) {
-      browser.storage.sync.get(null, (items) => {
-        const keys = items ? Object.keys(items) : [];
-        keys.sort();
-        if (keys.length > 0) {
-          browser.storage.profiles = items[keys[keys.length - 1]];
-          browser.storage.savedToCloud = true;
-        }
-      });
+    browser.windows.get(windowId, { populate: true }, (win) => {
+      for (let tab of win.tabs) {
+        onTabUpdated(tab);
+      }
+    });
+  });
+}
+
+function saveLocalToSyncStorage() {
+  browser.storage.local.get(['profiles', 'selectedProfileIdx'], (items) => {
+    let { profiles, selectedProfileIdx } = items;
+
+    if (!profiles) {
+      return;
     }
-  }, 100);
+
+    browser.storage.sync.set({ 'profiles': profiles });
+    browser.storage.sync.set({ 'selectedProfileIdx': selectedProfileIdx });
+
+    browser.storage.local.set({ 'savedToCloud': true });
+  });
+}
+
+function saveSyncToLocalStorage() {
 }
 
 browser.contextMenus.create({
@@ -398,24 +387,5 @@ browser.contextMenus.create({
   contexts: ['browser_action'],
 });
 
-browser.contextMenus.create({
-  id: 'lock',
-  title: 'Lock',
-  contexts: ['browser_action'],
-});
-
 initializeStorage();
-
-self.addEventListener('storage', function (e) {
-  currentProfile = loadSelectedProfile_();
-  setupHeaderModListener();
-  resetBadgeAndContextMenu();
-
-  console.log('storage', e);
-
-  if (e.key == 'profiles') {
-    saveStorageToCloud();
-  }
-});
-
 resetBadgeAndContextMenu();
